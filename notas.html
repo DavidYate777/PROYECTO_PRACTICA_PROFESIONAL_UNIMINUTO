@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mis Notas | UNIMINUTO Perdomo</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    /* Items dinámicos */
+    .items-area { margin-top: 14px; }
+    .items-area label {
+      font-size: 0.82rem; font-weight: 700; color: var(--text);
+      display: block; margin-bottom: 8px;
+    }
+    .items-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+    .item-row {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; padding: 8px 12px; font-size: 0.88rem;
+    }
+    .item-row .item-num {
+      color: var(--gold-dark); font-weight: 800; font-size: 0.78rem;
+      width: 18px; flex-shrink: 0;
+    }
+    .item-row .item-text { flex: 1; color: var(--text); }
+    .item-row .item-del {
+      background: none; border: none; color: var(--text-muted);
+      cursor: pointer; font-size: 0.82rem; padding: 0 2px; transition: color 0.2s;
+    }
+    .item-row .item-del:hover { color: var(--danger); }
+    .items-limit { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 6px; }
+
+    /* Excel preview table */
+    .excel-preview {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-top: 14px;
+    }
+    .excel-table {
+      border-collapse: collapse;
+      font-size: 0.78rem;
+      min-width: 600px;
+      width: 100%;
+    }
+    .excel-table th {
+      background: #1e7e34;
+      color: white;
+      padding: 8px 10px;
+      text-align: left;
+      font-weight: 700;
+      white-space: nowrap;
+      border-right: 1px solid rgba(255,255,255,0.15);
+    }
+    .excel-table th:first-child { background: #155724; min-width: 130px; }
+    .excel-table th:nth-child(2) { min-width: 180px; }
+    .excel-table td {
+      padding: 7px 10px;
+      border-bottom: 1px solid var(--border);
+      border-right: 1px solid #eef0f5;
+      color: var(--text);
+      white-space: nowrap;
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .excel-table td:first-child { color: var(--text-muted); font-size: 0.75rem; }
+    .excel-table tr:last-child td { border-bottom: none; }
+    .excel-table tr:nth-child(even) td { background: #f8faff; }
+    .excel-empty { text-align: center; color: var(--text-muted); font-style: italic; padding: 16px; }
+  </style>
+</head>
+<body>
+
+<nav class="navbar">
+  <a href="index.html" class="nav-logo">
+    <span class="logo-md">MD</span>
+    <div>UNIMINUTO<span>Sede Perdomo</span></div>
+  </a>
+  <ul class="nav-links">
+    <li><a href="index.html">Inicio</a></li>
+    <li><a href="funciones.html">Funciones</a></li>
+    <li><a href="lineamientos.html">Lineamientos</a></li>
+    <li><a href="equipo.html">Equipo</a></li>
+    <li><a href="correos.html">Correos</a></li>
+    <li><a href="notas.html">Notas</a></li>
+  </ul>
+  <button class="hamburger" aria-label="Menú"><span></span><span></span><span></span></button>
+</nav>
+
+<div class="page-header">
+  <div class="inner">
+    <div class="breadcrumb">
+      <a href="index.html">Inicio</a>
+      <i class="fas fa-chevron-right" style="font-size:0.7rem"></i>
+      <span>Mis Notas</span>
+    </div>
+    <h1><i class="fas fa-table" style="opacity:0.8;margin-right:12px"></i>Mis Notas</h1>
+    <p>Registra novedades del turno con hasta 10 ítems. Exporta a Excel con un clic.</p>
+  </div>
+</div>
+
+<main class="container">
+  <div class="notes-layout">
+
+    <!-- LEFT: NOTES PANEL -->
+    <div>
+      <div class="notes-panel reveal">
+        <div class="notes-panel-header">
+          <h3><i class="fas fa-list-ul"></i> Notas del turno</h3>
+          <span class="notes-count" id="notes-count">0 notas</span>
+        </div>
+        <div class="notes-body">
+          <!-- Input -->
+          <div class="note-input-area">
+            <div class="form-group">
+              <label style="font-size:0.82rem;font-weight:700;color:var(--text);margin-bottom:6px;display:block">
+                Nota principal
+              </label>
+              <textarea id="note-input" placeholder="Ej: En el auditorio quedó cable XLR y bocinas instaladas..." rows="2"></textarea>
+            </div>
+
+            <div class="items-area">
+              <label>Ítems adicionales <span class="items-limit" id="items-limit">(máx. 10 · 0 agregados)</span></label>
+              <div class="items-list" id="items-list"></div>
+              <div class="add-row" id="item-add-row">
+                <input type="text" id="item-input" placeholder="Agrega un ítem específico..." onkeydown="if(event.key==='Enter')addItem()">
+                <button class="btn btn-outline btn-sm" onclick="addItem()">
+                  <i class="fas fa-plus"></i> Ítem
+                </button>
+              </div>
+            </div>
+
+            <div class="btn-row" style="margin-top:14px">
+              <button class="btn btn-primary" onclick="addNote()">
+                <i class="fas fa-plus"></i> Agregar nota
+              </button>
+              <button class="btn btn-outline btn-sm" onclick="clearAll()">
+                <i class="fas fa-trash"></i> Limpiar todo
+              </button>
+            </div>
+          </div>
+
+          <!-- List -->
+          <div class="notes-list" id="notes-list" style="max-height:360px">
+            <div class="notes-empty" id="notes-empty">
+              <i class="fas fa-pen-nib"></i>
+              Aún no hay notas. Agrega tu primera observación.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Export actions -->
+      <div class="form-section reveal" style="margin-top:20px">
+        <h3><i class="fas fa-file-excel" style="color:#1e7e34"></i> Exportar a Excel</h3>
+        <p style="font-size:0.88rem;color:var(--text-muted);margin-bottom:16px">
+          Descarga un archivo <strong>.xlsx</strong> con columnas: <em>FECHA Y HORA · NOTA · ITEM 1 … ITEM 10</em>.
+        </p>
+        <div class="btn-row">
+          <button class="btn btn-success" onclick="exportExcel()">
+            <i class="fas fa-file-excel"></i> Descargar Excel
+          </button>
+          <button class="btn btn-outline" onclick="copiarNotas()">
+            <i class="fas fa-copy"></i> Copiar texto
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: GUIDE + PREVIEW -->
+    <div>
+      <div class="guide-panel reveal">
+        <div class="guide-panel-header">
+          <h3><i class="fas fa-lightbulb"></i> ¿Cómo usar las notas?</h3>
+        </div>
+        <div class="guide-panel-body">
+          <div class="guide-step">
+            <div class="guide-num">1</div>
+            <div>Escribe la <strong>nota principal</strong> (descripción general del turno o novedad).</div>
+          </div>
+          <div class="guide-step">
+            <div class="guide-num">2</div>
+            <div>Añade hasta <strong>10 ítems</strong> específicos para esa nota.</div>
+          </div>
+          <div class="guide-step">
+            <div class="guide-num">3</div>
+            <div>Presiona <strong>Agregar nota</strong>. Las notas se guardan automáticamente en el navegador.</div>
+          </div>
+          <div class="guide-step">
+            <div class="guide-num">4</div>
+            <div>Pulsa <strong>Descargar Excel</strong> para obtener el archivo con todas las notas en formato tabla.</div>
+          </div>
+          <div class="guide-step">
+            <div class="guide-num">5</div>
+            <div>También puedes copiar el texto y pegarlo en el <a href="correos.html" style="color:var(--blue);font-weight:700">correo de cierre de turno</a>.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="alert alert-gold reveal" style="margin-top:16px">
+        <i class="fas fa-info-circle"></i>
+        <div style="font-size:0.85rem">
+          <strong>Tip:</strong> Usa <strong>Ctrl + Enter</strong> en el campo de nota para agregarla rápidamente sin usar el mouse.
+        </div>
+      </div>
+
+      <!-- EXCEL PREVIEW -->
+      <div class="guide-panel reveal" style="margin-top:16px">
+        <div class="guide-panel-header" style="background:#1e7e34">
+          <h3 style="color:white"><i class="fas fa-table"></i> Vista previa del Excel</h3>
+        </div>
+        <div class="guide-panel-body" style="padding:14px">
+          <div class="excel-preview">
+            <table class="excel-table">
+              <thead>
+                <tr>
+                  <th>FECHA Y HORA</th>
+                  <th>NOTA</th>
+                  <th>ITEM 1</th>
+                  <th>ITEM 2</th>
+                  <th>···</th>
+                </tr>
+              </thead>
+              <tbody id="excel-preview-body">
+                <tr>
+                  <td colspan="5" class="excel-empty">Agrega notas para ver la vista previa...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</main>
+
+<footer>
+  UNIMINUTO · Sede Perdomo · <strong>Oficina de Personal de Apoyo</strong> · Piso 8°
+</footer>
+
+<script src="script.js"></script>
+<script>
+const STORAGE_KEY = 'uniminuto_notas_v2';
+let notes = [];
+let currentItems = [];
+
+// ===== LOAD =====
+function loadNotes() {
+  try { notes = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { notes = []; }
+  renderNotes();
+}
+
+// ===== SAVE =====
+function saveNotes() { localStorage.setItem(STORAGE_KEY, JSON.stringify(notes)); }
+
+// ===== CURRENT ITEMS =====
+function addItem() {
+  if (currentItems.length >= 10) { showToast('Máximo 10 ítems por nota', 'error'); return; }
+  const inp = document.getElementById('item-input');
+  const val = inp.value.trim();
+  if (!val) return;
+  currentItems.push(val);
+  inp.value = '';
+  renderCurrentItems();
+}
+
+function removeCurrentItem(i) {
+  currentItems.splice(i, 1);
+  renderCurrentItems();
+}
+
+function renderCurrentItems() {
+  const list = document.getElementById('items-list');
+  const limit = document.getElementById('items-limit');
+  const addRow = document.getElementById('item-add-row');
+  limit.textContent = `(máx. 10 · ${currentItems.length} agregado${currentItems.length !== 1 ? 's' : ''})`;
+  addRow.style.display = currentItems.length >= 10 ? 'none' : 'flex';
+
+  list.innerHTML = currentItems.map((item, i) => `
+    <div class="item-row">
+      <span class="item-num">#${i + 1}</span>
+      <span class="item-text">${escapeHtml(item)}</span>
+      <button class="item-del" onclick="removeCurrentItem(${i})" title="Eliminar ítem"><i class="fas fa-times"></i></button>
+    </div>
+  `).join('');
+}
+
+// ===== ADD NOTE =====
+function addNote() {
+  const inp = document.getElementById('note-input');
+  const text = inp.value.trim();
+  if (!text && currentItems.length === 0) {
+    showToast('Escribe al menos una nota o un ítem', 'error'); return;
+  }
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const datetime = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  notes.unshift({ id: Date.now(), text, items: [...currentItems], datetime });
+  inp.value = '';
+  currentItems = [];
+  renderCurrentItems();
+  saveNotes();
+  renderNotes();
+  showToast('Nota agregada correctamente');
+}
+
+// ===== DELETE NOTE =====
+function deleteNote(id) {
+  notes = notes.filter(n => n.id !== id);
+  saveNotes(); renderNotes();
+}
+
+// ===== CLEAR ALL =====
+function clearAll() {
+  if (notes.length === 0) return;
+  if (!confirm('¿Eliminar todas las notas? Esta acción no se puede deshacer.')) return;
+  notes = []; saveNotes(); renderNotes();
+}
+
+// ===== RENDER NOTES =====
+function renderNotes() {
+  const list = document.getElementById('notes-list');
+  const count = document.getElementById('notes-count');
+  count.textContent = `${notes.length} ${notes.length === 1 ? 'nota' : 'notas'}`;
+
+  if (notes.length === 0) {
+    list.innerHTML = '<div class="notes-empty"><i class="fas fa-pen-nib"></i>Aún no hay notas. Agrega tu primera observación.</div>';
+    updateExcelPreview();
+    return;
+  }
+
+  list.innerHTML = notes.map(n => `
+    <div class="note-item" id="note-${n.id}">
+      <div class="note-bullet"></div>
+      <div style="flex:1;min-width:0">
+        <div class="note-text">${n.text ? escapeHtml(n.text) : '<em style="color:var(--text-muted)">Sin nota principal</em>'}</div>
+        ${n.items && n.items.length ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">
+          ${n.items.map((it,i) => `<span style="background:var(--blue-light);color:var(--blue);border-radius:6px;padding:2px 8px;font-size:0.75rem;font-weight:600">#${i+1} ${escapeHtml(it)}</span>`).join('')}
+        </div>` : ''}
+      </div>
+      <span class="note-time" style="white-space:nowrap;flex-shrink:0">${n.datetime}</span>
+      <button class="note-del" onclick="deleteNote(${n.id})" title="Eliminar nota">
+        <i class="fas fa-trash-alt"></i>
+      </button>
+    </div>
+  `).join('');
+
+  updateExcelPreview();
+}
+
+// ===== EXCEL PREVIEW =====
+function updateExcelPreview() {
+  const tbody = document.getElementById('excel-preview-body');
+  if (notes.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="excel-empty">Agrega notas para ver la vista previa...</td></tr>';
+    return;
+  }
+  // Show max 3 rows in preview
+  const preview = notes.slice(0, 3);
+  tbody.innerHTML = preview.map(n => {
+    const item1 = (n.items && n.items[0]) ? escapeHtml(n.items[0]) : '';
+    const item2 = (n.items && n.items[1]) ? escapeHtml(n.items[1]) : '';
+    const more = n.items && n.items.length > 2 ? `<span style="color:var(--text-muted)">+${n.items.length-2}</span>` : '';
+    return `<tr>
+      <td>${n.datetime}</td>
+      <td style="white-space:normal;max-width:160px">${n.text ? escapeHtml(n.text).substring(0,50) + (n.text.length>50?'…':'') : ''}</td>
+      <td>${item1}</td>
+      <td>${item2}${more}</td>
+      <td style="color:var(--text-muted)">···</td>
+    </tr>`;
+  }).join('');
+  if (notes.length > 3) {
+    tbody.innerHTML += `<tr><td colspan="5" style="text-align:center;color:var(--text-muted);font-size:0.75rem;padding:6px">y ${notes.length - 3} más...</td></tr>`;
+  }
+}
+
+// ===== ESCAPE HTML =====
+function escapeHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ===== COPY NOTES =====
+function copiarNotas() {
+  if (notes.length === 0) { showToast('No hay notas para copiar', 'error'); return; }
+  const text = notes.slice().reverse().map(n => {
+    let line = `• [${n.datetime}] ${n.text || ''}`;
+    if (n.items && n.items.length) {
+      line += '\n' + n.items.map((it, i) => `    ${i+1}. ${it}`).join('\n');
+    }
+    return line;
+  }).join('\n');
+  copyText(text);
+}
+
+// ===== EXPORT EXCEL =====
+function exportExcel() {
+  if (notes.length === 0) { showToast('No hay notas para exportar', 'error'); return; }
+
+  // Headers
+  const headers = ['FECHA Y HORA', 'NOTA', 'ITEM 1', 'ITEM 2', 'ITEM 3', 'ITEM 4', 'ITEM 5', 'ITEM 6', 'ITEM 7', 'ITEM 8', 'ITEM 9', 'ITEM 10'];
+
+  // Rows: oldest first
+  const rows = notes.slice().reverse().map(n => {
+    const items = Array(10).fill('');
+    if (n.items) n.items.forEach((it, i) => { if (i < 10) items[i] = it; });
+    return [n.datetime, n.text || '', ...items];
+  });
+
+  const wsData = [headers, ...rows];
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  // Column widths
+  ws['!cols'] = [
+    { wch: 18 }, // FECHA Y HORA
+    { wch: 40 }, // NOTA
+    ...Array(10).fill({ wch: 22 }) // ITEM 1-10
+  ];
+
+  // Header style (bold + background) — basic xlsx
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for (let C = range.s.c; C <= range.e.c; C++) {
+    const cell = ws[XLSX.utils.encode_cell({ r: 0, c: C })];
+    if (cell) {
+      cell.s = {
+        font: { bold: true, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: '1E7E34' } },
+        alignment: { horizontal: 'center' }
+      };
+    }
+  }
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Notas');
+
+  // File name with today's date
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const fname = `Notas_Turno_${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}.xlsx`;
+
+  XLSX.writeFile(wb, fname);
+  showToast('¡Excel descargado correctamente!');
+}
+
+// ===== INIT =====
+document.addEventListener('DOMContentLoaded', () => {
+  loadNotes();
+  document.getElementById('note-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.ctrlKey) addNote();
+  });
+});
+</script>
+</body>
+</html>

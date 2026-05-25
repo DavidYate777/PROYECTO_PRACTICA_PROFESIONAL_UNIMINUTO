@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Generador de Correos | UNIMINUTO Perdomo</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* Progress stepper */
+    .stepper {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin-bottom: 28px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      scrollbar-width: none;
+    }
+    .stepper::-webkit-scrollbar { display: none; }
+    .step-node {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex-shrink: 0;
+      min-width: 80px;
+      cursor: default;
+    }
+    .step-circle {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--border);
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Outfit', sans-serif;
+      font-weight: 800;
+      font-size: 0.9rem;
+      transition: all 0.3s;
+      border: 2px solid var(--border);
+    }
+    .step-node.active .step-circle {
+      background: var(--blue);
+      color: white;
+      border-color: var(--blue);
+      box-shadow: 0 0 0 4px rgba(0,61,165,0.15);
+    }
+    .step-node.done .step-circle {
+      background: var(--success);
+      color: white;
+      border-color: var(--success);
+    }
+    .step-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-top: 6px;
+      text-align: center;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+    .step-node.active .step-label { color: var(--blue); }
+    .step-line {
+      flex: 1;
+      height: 2px;
+      background: var(--border);
+      min-width: 24px;
+      margin-bottom: 20px;
+      transition: background 0.3s;
+    }
+    .step-line.done { background: var(--success); }
+
+    /* Type cards enhanced */
+    .type-btn {
+      border-radius: var(--radius-lg);
+      transition: all 0.25s;
+      position: relative;
+    }
+    .type-btn.selected {
+      border-color: var(--blue);
+      background: var(--blue-light);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0,61,165,0.15);
+    }
+    .type-btn.selected .type-label { color: var(--blue); }
+    .type-btn .selected-check {
+      position: absolute;
+      top: 10px; right: 10px;
+      width: 20px; height: 20px;
+      background: var(--blue);
+      border-radius: 50%;
+      color: white;
+      font-size: 0.65rem;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    .type-btn.selected .selected-check { display: flex; }
+
+    /* Accion pills enhanced */
+    .accion-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+    .accion-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 16px 18px;
+      background: var(--bg);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: left;
+    }
+    .accion-card:hover { border-color: var(--blue); background: var(--blue-light); }
+    .accion-card.selected-confirm { border-color: var(--success); background: #e8f5ee; }
+    .accion-card.selected-deny { border-color: var(--danger); background: #fce8e8; }
+    .accion-card.selected-warn { border-color: var(--gold-dark); background: var(--gold-light); }
+    .accion-icon {
+      font-size: 1.4rem;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .accion-title {
+      font-weight: 700;
+      font-size: 0.92rem;
+      color: var(--text);
+      margin-bottom: 3px;
+    }
+    .accion-desc {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* Signature field */
+    .signature-wrap {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.88rem;
+      color: var(--text-muted);
+    }
+    .signature-wrap strong { color: var(--text); }
+
+    /* Preview enhanced */
+    .email-preview-body {
+      font-family: 'Nunito', sans-serif;
+      line-height: 1.9;
+      color: #1c2340;
+    }
+
+    /* Badge status */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: 100px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    .badge-success { background: #e8f5ee; color: var(--success); }
+    .badge-danger { background: #fce8e8; color: var(--danger); }
+    .badge-warn { background: var(--gold-light); color: var(--gold-dark); }
+    .badge-purple { background: #ede8f8; color: #6230c8; }
+
+    @media(max-width:600px) {
+      .accion-grid { grid-template-columns: 1fr; }
+      .stepper { gap: 0; }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="navbar">
+  <a href="index.html" class="nav-logo">
+    <span class="logo-md">MD</span>
+    <div>UNIMINUTO<span>Sede Perdomo</span></div>
+  </a>
+  <ul class="nav-links">
+    <li><a href="index.html">Inicio</a></li>
+    <li><a href="funciones.html">Funciones</a></li>
+    <li><a href="lineamientos.html">Lineamientos</a></li>
+    <li><a href="equipo.html">Equipo</a></li>
+    <li><a href="correos.html">Correos</a></li>
+    <li><a href="notas.html">Notas</a></li>
+  </ul>
+  <button class="hamburger" aria-label="Menú"><span></span><span></span><span></span></button>
+</nav>
+
+<div class="page-header">
+  <div class="inner">
+    <div class="breadcrumb">
+      <a href="index.html">Inicio</a>
+      <i class="fas fa-chevron-right" style="font-size:0.7rem"></i>
+      <span>Generador de Correos</span>
+    </div>
+    <h1><i class="fas fa-envelope-open-text" style="opacity:0.8;margin-right:12px"></i>Generador de Correos</h1>
+    <p>Selecciona el tipo, completa los datos y copia el correo listo en segundos.</p>
+  </div>
+</div>
+
+<main class="container">
+<div class="email-gen">
+
+  <!-- FIRMA DEL PRACTICANTE -->
+  <div class="form-section reveal" style="margin-bottom:20px">
+    <h3><i class="fas fa-user"></i> Tu nombre (firma del correo)</h3>
+    <div class="form-row" style="margin-bottom:0">
+      <div class="form-group">
+        <label>Nombre completo</label>
+        <input type="text" id="inp-firma" placeholder="Ej: Juan Pérez García" oninput="saveFirma()">
+      </div>
+      <div class="form-group" style="justify-content:flex-end">
+        <label style="opacity:0">Preview</label>
+        <div class="signature-wrap">
+          <i class="fas fa-signature" style="color:var(--blue)"></i>
+          El correo firmará como: <strong id="firma-preview">tu nombre</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROGRESS STEPPER -->
+  <div class="stepper reveal" id="stepper">
+    <div class="step-node" id="sn-1">
+      <div class="step-circle">1</div>
+      <div class="step-label">Tipo de<br>correo</div>
+    </div>
+    <div class="step-line" id="sl-1"></div>
+    <div class="step-node" id="sn-2">
+      <div class="step-circle">2</div>
+      <div class="step-label">Elemento</div>
+    </div>
+    <div class="step-line" id="sl-2"></div>
+    <div class="step-node" id="sn-3">
+      <div class="step-circle">3</div>
+      <div class="step-label">Acción</div>
+    </div>
+    <div class="step-line" id="sl-3"></div>
+    <div class="step-node" id="sn-4">
+      <div class="step-circle">4</div>
+      <div class="step-label">Fecha y<br>horario</div>
+    </div>
+    <div class="step-line" id="sl-4"></div>
+    <div class="step-node" id="sn-5">
+      <div class="step-circle"><i class="fas fa-check" style="font-size:0.75rem"></i></div>
+      <div class="step-label">Correo<br>listo</div>
+    </div>
+  </div>
+
+  <!-- STEP 1: TIPO -->
+  <div class="form-section reveal">
+    <h3><i class="fas fa-th-large"></i> Paso 1 — Tipo de correo</h3>
+    <div class="type-grid">
+      <button class="type-btn" onclick="selectType('ninera')" id="type-ninera">
+        <span class="selected-check"><i class="fas fa-check"></i></span>
+        <span class="type-icon">🍼</span>
+        <span class="type-label">Niñera</span>
+        <span class="type-sub">Niñera 1 · Niñera 3</span>
+      </button>
+      <button class="type-btn" onclick="selectType('lab')" id="type-lab">
+        <span class="selected-check"><i class="fas fa-check"></i></span>
+        <span class="type-icon">🖥️</span>
+        <span class="type-label">Laboratorio</span>
+        <span class="type-sub">704LS1 · 803LS2 · 804LS3</span>
+      </button>
+      <button class="type-btn" onclick="selectType('cierre')" id="type-cierre">
+        <span class="selected-check"><i class="fas fa-check"></i></span>
+        <span class="type-icon">🌙</span>
+        <span class="type-label">Cierre de turno</span>
+        <span class="type-sub">Tarde · Noche</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- RESERVA SECTION (Niñera o Lab) -->
+  <div id="section-reserva" class="hidden">
+
+    <!-- STEP 2: ELEMENTO -->
+    <div class="form-section reveal">
+      <h3><i class="fas fa-hand-pointer"></i> Paso 2 — Selecciona el elemento</h3>
+      <div id="ninera-opts" class="hidden">
+        <div class="radio-pills">
+          <label class="radio-pill gold-check">
+            <input type="radio" name="elemento" value="Niñera #1" onchange="updateElemento(this)">
+            🍼 Niñera 1
+          </label>
+          <label class="radio-pill gold-check">
+            <input type="radio" name="elemento" value="Niñera #3" onchange="updateElemento(this)">
+            🍼 Niñera 3
+          </label>
+        </div>
+        <div class="alert alert-gold" style="margin-top:14px;font-size:0.85rem">
+          <i class="fas fa-map-marker-alt"></i>
+          <div>El profesor debe dirigirse al <strong>piso 8°</strong> para recoger la niñera. Recuérdalo en el correo.</div>
+        </div>
+      </div>
+      <div id="lab-opts" class="hidden">
+        <div class="radio-pills">
+          <label class="radio-pill">
+            <input type="radio" name="elemento" value="Laboratorio 704LS1" onchange="updateElemento(this)">
+            🖥️ 704LS1
+          </label>
+          <label class="radio-pill">
+            <input type="radio" name="elemento" value="Laboratorio 803LS2" onchange="updateElemento(this)">
+            🖥️ 803LS2
+          </label>
+          <label class="radio-pill">
+            <input type="radio" name="elemento" value="Laboratorio 804LS3" onchange="updateElemento(this)">
+            🖥️ 804LS3
+          </label>
+        </div>
+        <div class="alert alert-blue" style="margin-top:14px;font-size:0.85rem">
+          <i class="fas fa-qrcode"></i>
+          <div>Para laboratorios, el docente debe escanear el <strong>código QR</strong> de la puerta y escribir por Teams.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 3: ACCIÓN -->
+    <div class="form-section reveal">
+      <h3><i class="fas fa-tasks"></i> Paso 3 — ¿Qué acción realizas?</h3>
+      <div class="accion-grid">
+        <button class="accion-card" id="acc-confirmar" onclick="selectAccion('confirmar')">
+          <span class="accion-icon">✅</span>
+          <div>
+            <div class="accion-title">Confirmar solicitud <span class="badge badge-success">Disponible</span></div>
+            <div class="accion-desc">El elemento está disponible en el horario solicitado. Se confirma la reserva.</div>
+          </div>
+        </button>
+        <button class="accion-card" id="acc-negar-horario" onclick="selectAccion('negar-horario')">
+          <span class="accion-icon">❌</span>
+          <div>
+            <div class="accion-title">Negar — no disponible <span class="badge badge-danger">Ocupado</span></div>
+            <div class="accion-desc">El elemento ya está reservado o no hay disponibilidad en ese horario.</div>
+          </div>
+        </button>
+        <button class="accion-card" id="acc-negar-inconsistencia" onclick="selectAccion('negar-inconsistencia')">
+          <span class="accion-icon">⚠️</span>
+          <div>
+            <div class="accion-title">Negar — inconsistencia en horario <span class="badge badge-warn">Error</span></div>
+            <div class="accion-desc">El formulario tiene un error: la hora de fin es anterior a la de inicio.</div>
+          </div>
+        </button>
+      </div>
+    </div>
+
+    <!-- STEP 4: FECHA Y HORA -->
+    <div class="form-section reveal">
+      <h3><i class="fas fa-calendar-alt"></i> Paso 4 — Fecha y horario de la solicitud</h3>
+      <div class="form-row three">
+        <div class="form-group">
+          <label>Fecha</label>
+          <input type="date" id="inp-fecha" onchange="checkInconsistencia()">
+        </div>
+        <div class="form-group">
+          <label>Hora inicio</label>
+          <input type="time" id="inp-inicio" onchange="checkInconsistencia()">
+        </div>
+        <div class="form-group">
+          <label>Hora fin</label>
+          <input type="time" id="inp-fin" onchange="checkInconsistencia()">
+        </div>
+      </div>
+      <div id="inconsistencia-warn" class="hidden alert alert-gold" style="margin-top:12px">
+        <i class="fas fa-exclamation-triangle"></i>
+        <div>
+          <strong>¡Inconsistencia detectada!</strong> La hora de finalización es anterior a la hora de inicio.<br>
+          <span style="font-size:0.85rem">Puedes usar la acción "Negar — inconsistencia" para notificar al docente.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="btn-row reveal">
+      <button class="btn btn-primary" onclick="generarCorreo()">
+        <i class="fas fa-magic"></i> Generar correo
+      </button>
+      <button class="btn btn-outline" onclick="resetForm()">
+        <i class="fas fa-redo"></i> Limpiar
+      </button>
+    </div>
+  </div>
+
+  <!-- CIERRE DE TURNO SECTION -->
+  <div id="section-cierre" class="hidden">
+    <div class="form-section reveal">
+      <h3><i class="fas fa-moon"></i> Paso 2 — Detalles del cierre de turno</h3>
+
+      <div class="form-group" style="margin-bottom:20px">
+        <label>Turno</label>
+        <div class="radio-pills">
+          <label class="radio-pill">
+            <input type="radio" name="turno" value="Tarde"> 🌅 Tarde
+          </label>
+          <label class="radio-pill">
+            <input type="radio" name="turno" value="Noche"> 🌙 Noche
+          </label>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:20px">
+        <label>¿Hay novedades en el turno?</label>
+        <div class="accion-grid" style="margin-top:8px">
+          <button class="accion-card" id="acc-sin-novedad" onclick="toggleNovedades(false); markCierreAccion('sin')">
+            <span class="accion-icon">✅</span>
+            <div>
+              <div class="accion-title">Sin novedad</div>
+              <div class="accion-desc">El turno transcurrió sin incidentes. Solo se envía el saludo de cierre.</div>
+            </div>
+          </button>
+          <button class="accion-card" id="acc-con-novedad" onclick="toggleNovedades(true); markCierreAccion('con')">
+            <span class="accion-icon">📋</span>
+            <div>
+              <div class="accion-title">Con novedades</div>
+              <div class="accion-desc">Hay eventos, equipos instalados u observaciones que dejar registradas.</div>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <div id="novedades-area" class="hidden">
+        <label style="font-size:0.82rem;font-weight:700;color:var(--text);display:block;margin-bottom:10px">
+          <i class="fas fa-list-ul" style="color:var(--blue);margin-right:6px"></i>Novedades del turno:
+        </label>
+        <div class="novedades-list" id="novedades-list"></div>
+        <div class="add-row">
+          <input type="text" id="novedad-input" placeholder="Ej: Queda instalado en el auditorio cable XLR y micrófono..." onkeydown="if(event.key==='Enter')addNovedad()">
+          <button class="btn btn-primary btn-sm" onclick="addNovedad()">
+            <i class="fas fa-plus"></i> Añadir
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="btn-row reveal">
+      <button class="btn btn-primary" onclick="generarCierre()">
+        <i class="fas fa-magic"></i> Generar correo
+      </button>
+      <button class="btn btn-outline" onclick="resetForm()">
+        <i class="fas fa-redo"></i> Limpiar
+      </button>
+    </div>
+  </div>
+
+  <!-- EMAIL PREVIEW -->
+  <div id="email-preview-wrap" class="hidden">
+    <div class="email-preview reveal">
+      <div class="email-preview-header">
+        <span><i class="fas fa-envelope"></i> Correo generado</span>
+        <span id="preview-label" style="font-size:0.8rem;opacity:0.75;font-weight:400"></span>
+      </div>
+      <div class="email-preview-body" id="preview-body"></div>
+      <div class="email-preview-footer" style="flex-wrap:wrap;gap:8px">
+        <button class="btn btn-success btn-sm" onclick="copiarCorreo()">
+          <i class="fas fa-copy"></i> Copiar correo
+        </button>
+        <button class="btn btn-outline btn-sm" onclick="resetForm()">
+          <i class="fas fa-plus"></i> Nuevo correo
+        </button>
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('email-preview-wrap').classList.add('hidden')">
+          <i class="fas fa-times"></i> Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- GUÍA DE CORREOS -->
+<div style="margin-top:56px">
+  <div class="section-title reveal">
+    <h2><i class="fas fa-book-open" style="color:var(--blue);margin-right:10px"></i>Guía de correos</h2>
+    <p>Referencia rápida para saber cuándo usar cada tipo de correo.</p>
+    <div class="accent-line"></div>
+  </div>
+
+  <div class="accordion reveal">
+    <div class="acc-item">
+      <div class="acc-header">
+        <h3><i class="fas fa-check-circle" style="color:var(--success)"></i> Confirmación de solicitud</h3>
+        <i class="fas fa-chevron-down acc-arrow"></i>
+      </div>
+      <div class="acc-body">
+        <p>Se usa cuando el elemento solicitado <strong>está disponible</strong> en el horario indicado.</p>
+        <ul>
+          <li>Para <strong>niñeras</strong>: indicar que el profesor debe ir al piso 8° a reclamarla.</li>
+          <li>Para <strong>laboratorios</strong>: indicar que debe usar el QR de la puerta y escribir por Teams.</li>
+          <li>Siempre mencionar que los elementos se revisan antes y después del uso.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="acc-item">
+      <div class="acc-header">
+        <h3><i class="fas fa-times-circle" style="color:var(--danger)"></i> Negación por horario no disponible</h3>
+        <i class="fas fa-chevron-down acc-arrow"></i>
+      </div>
+      <div class="acc-body">
+        <p>Se usa cuando el elemento <strong>ya está reservado o no hay disponibilidad</strong> en el horario pedido. El correo informa claramente el elemento, fecha y hora no disponible para que el docente busque otra opción.</p>
+      </div>
+    </div>
+    <div class="acc-item">
+      <div class="acc-header">
+        <h3><i class="fas fa-exclamation-triangle" style="color:var(--gold-dark)"></i> Negación por inconsistencia de horario</h3>
+        <i class="fas fa-chevron-down acc-arrow"></i>
+      </div>
+      <div class="acc-body">
+        <p>Se usa cuando el formulario del docente tiene un <strong>error lógico</strong>: la hora de finalización es anterior a la hora de inicio. El sistema lo detecta automáticamente y activa una advertencia.</p>
+      </div>
+    </div>
+    <div class="acc-item">
+      <div class="acc-header">
+        <h3><i class="fas fa-moon" style="color:#6230c8"></i> Cierre de turno</h3>
+        <i class="fas fa-chevron-down acc-arrow"></i>
+      </div>
+      <div class="acc-body">
+        <p>Se envía obligatoriamente al finalizar cada turno (tarde o noche).</p>
+        <ul>
+          <li><strong>Sin novedad:</strong> correo simple indicando que todo quedó en orden.</li>
+          <li><strong>Con novedades:</strong> lista los elementos instalados, equipos dejados, pendientes y observaciones importantes para el siguiente turno.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<footer>
+  UNIMINUTO · Sede Perdomo · <strong>Oficina de Personal de Apoyo</strong> · Piso 8°
+</footer>
+
+<script src="script.js"></script>
+<script>
+// ===== STATE =====
+let currentType = null;
+let currentElemento = null;
+let currentAccion = null;
+let novedadesList = [];
+let cierreAccion = null;
+
+// ===== FIRMA =====
+function saveFirma() {
+  const val = document.getElementById('inp-firma').value.trim();
+  document.getElementById('firma-preview').textContent = val || 'tu nombre';
+  localStorage.setItem('uniminuto_firma', val);
+}
+
+function loadFirma() {
+  const saved = localStorage.getItem('uniminuto_firma') || '';
+  document.getElementById('inp-firma').value = saved;
+  document.getElementById('firma-preview').textContent = saved || 'tu nombre';
+}
+
+function getFirma() {
+  return document.getElementById('inp-firma').value.trim() || '[Tu nombre]';
+}
+
+// ===== STEPPER =====
+function updateStepper(step) {
+  for (let i = 1; i <= 5; i++) {
+    const node = document.getElementById(`sn-${i}`);
+    if (!node) continue;
+    node.classList.remove('active', 'done');
+    if (i < step) node.classList.add('done');
+    else if (i === step) node.classList.add('active');
+  }
+  for (let i = 1; i <= 4; i++) {
+    const line = document.getElementById(`sl-${i}`);
+    if (line) line.classList.toggle('done', i < step);
+  }
+}
+
+// ===== TYPE SELECTION =====
+function selectType(type) {
+  currentType = type;
+  currentElemento = null;
+  currentAccion = null;
+  cierreAccion = null;
+
+  document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById('type-' + type).classList.add('selected');
+
+  const isReserva = type !== 'cierre';
+  document.getElementById('section-reserva').classList.toggle('hidden', !isReserva);
+  document.getElementById('section-cierre').classList.toggle('hidden', isReserva);
+  document.getElementById('email-preview-wrap').classList.add('hidden');
+
+  if (isReserva) {
+    document.getElementById('ninera-opts').classList.toggle('hidden', type !== 'ninera');
+    document.getElementById('lab-opts').classList.toggle('hidden', type !== 'lab');
+    document.querySelectorAll('input[name="elemento"]').forEach(r => r.checked = false);
+    resetAccionCards();
+  }
+
+  updateStepper(2);
+}
+
+// ===== ELEMENTO =====
+function updateElemento(input) {
+  currentElemento = input.value;
+  updateStepper(3);
+}
+
+// ===== ACCION =====
+function resetAccionCards() {
+  ['acc-confirmar','acc-negar-horario','acc-negar-inconsistencia'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('selected-confirm','selected-deny','selected-warn');
+  });
+}
+
+function selectAccion(accion) {
+  currentAccion = accion;
+  resetAccionCards();
+  if (accion === 'confirmar') document.getElementById('acc-confirmar').classList.add('selected-confirm');
+  else if (accion === 'negar-horario') document.getElementById('acc-negar-horario').classList.add('selected-deny');
+  else if (accion === 'negar-inconsistencia') document.getElementById('acc-negar-inconsistencia').classList.add('selected-warn');
+  updateStepper(4);
+}
+
+// ===== INCONSISTENCIA =====
+function checkInconsistencia() {
+  const inicio = document.getElementById('inp-inicio').value;
+  const fin = document.getElementById('inp-fin').value;
+  const warn = document.getElementById('inconsistencia-warn');
+  if (inicio && fin && fin < inicio) {
+    warn.classList.remove('hidden');
+    // Auto-suggest inconsistencia
+    if (!currentAccion) selectAccion('negar-inconsistencia');
+  } else {
+    warn.classList.add('hidden');
+  }
+}
+
+// ===== NOVEDADES =====
+function toggleNovedades(show) {
+  document.getElementById('novedades-area').classList.toggle('hidden', !show);
+  if (!show) { novedadesList = []; renderNovedades(); }
+}
+
+function markCierreAccion(tipo) {
+  cierreAccion = tipo;
+  ['acc-sin-novedad','acc-con-novedad'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('selected-confirm','selected-warn');
+  });
+  if (tipo === 'sin') document.getElementById('acc-sin-novedad').classList.add('selected-confirm');
+  else document.getElementById('acc-con-novedad').classList.add('selected-warn');
+  updateStepper(4);
+}
+
+function addNovedad() {
+  const inp = document.getElementById('novedad-input');
+  const val = inp.value.trim();
+  if (!val) return;
+  novedadesList.push(val);
+  inp.value = '';
+  renderNovedades();
+}
+
+function renderNovedades() {
+  const list = document.getElementById('novedades-list');
+  if (novedadesList.length === 0) {
+    list.innerHTML = '<div style="font-size:0.85rem;color:var(--text-muted);padding:4px 0">No hay novedades añadidas aún.</div>';
+    return;
+  }
+  list.innerHTML = novedadesList.map((n, i) => `
+    <div class="novedad-item">
+      <span class="bullet">•</span>
+      <span class="text">${escapeHtml(n)}</span>
+      <button class="del-btn" onclick="removeNovedad(${i})" title="Eliminar"><i class="fas fa-times"></i></button>
+    </div>
+  `).join('');
+}
+
+function removeNovedad(i) { novedadesList.splice(i, 1); renderNovedades(); }
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ===== GENERAR CORREO (RESERVA) =====
+function generarCorreo() {
+  if (!currentElemento) { showToast('Selecciona un elemento (Niñera o Laboratorio)', 'error'); return; }
+  if (!currentAccion) { showToast('Selecciona la acción a realizar', 'error'); return; }
+  const fecha = document.getElementById('inp-fecha').value;
+  const inicio = document.getElementById('inp-inicio').value;
+  const fin = document.getElementById('inp-fin').value;
+  if (!fecha || !inicio || !fin) { showToast('Completa la fecha y los horarios', 'error'); return; }
+
+  const fechaFmt = formatDate(fecha);
+  const esNinera = currentType === 'ninera';
+  const firma = getFirma();
+  let correo = '', label = '';
+
+  if (currentAccion === 'confirmar') {
+    label = '✅ Confirmación de solicitud';
+    if (esNinera) {
+      correo = `Buen día, profesor/a:\n\n• Para reclamar estos elementos, debe dirigirse a la oficina de personal de apoyo ubicada en el 8.° piso.\n• Los elementos serán revisados antes de la entrega y nuevamente al momento de su devolución.\n\nPor lo anterior, confirmo lo siguiente:\n\nElementos: ${currentElemento}\nFecha: ${fechaFmt}\nHora: ${inicio} - ${fin}\n\nQuedo atento(a) a cualquier comentario.\nCordialmente,\n${firma}`;
+    } else {
+      correo = `Buen día, profesor:\n\n• Para apertura de este espacio escribir por Teams escaneando el código QR que se encuentra en la puerta del laboratorio.\n• Los elementos serán revisados antes de la entrega y nuevamente al momento de su devolución.\n\nPor lo anterior, confirmo lo siguiente:\n\nElementos: ${currentElemento}\nFecha: ${fechaFmt}\nHora: ${inicio} – ${fin}\n\nQuedo atento(a) a cualquier comentario.\nCordialmente,\n${firma}`;
+    }
+  } else if (currentAccion === 'negar-horario') {
+    label = '❌ Negación — no disponible';
+    if (esNinera) {
+      correo = `Buen día, profesor/a:\n\nMe permito informarle que las Niñeras NO se encuentran disponibles en el siguiente horario:\n\nElementos: ${currentElemento}\nFecha: ${fechaFmt}\nHora: ${inicio} ${fin}\n\nQuedo atento a cualquier comentario.\nCordialmente,\n${firma}`;
+    } else {
+      correo = `Buen día, profesor:\n\nMe permito informarle que el espacio solicitado NO se encuentra disponible en el siguiente horario:\n\nElementos: ${currentElemento}\nFecha: ${fechaFmt}\nHora: ${inicio} ${fin}\n\nQuedo atento(a) a cualquier comentario.\nCordialmente,\n${firma}`;
+    }
+  } else if (currentAccion === 'negar-inconsistencia') {
+    label = '⚠️ Negación — inconsistencia de horario';
+    const tipo = esNinera ? 'la niñera' : 'el espacio';
+    correo = `Buen día, profesor${esNinera ? '/a' : ''}:\n\nMe permito informarle que NO es posible gestionar la reserva de ${tipo}, ya que el horario suministrado presenta una inconsistencia.\n\nDetalles de la solicitud:\n• Elemento: ${currentElemento}\n• Fecha: ${fechaFmt}\n• Hora: ${inicio} – ${fin}\n\nComo puede observarse, la hora de finalización es anterior a la hora de inicio.\n\nQuedo atento(a) a cualquier comentario.\nCordialmente,\n${firma}`;
+  }
+
+  mostrarPreview(correo, label);
+  updateStepper(5);
+}
+
+// ===== GENERAR CIERRE =====
+function generarCierre() {
+  const turnoEl = document.querySelector('input[name="turno"]:checked');
+  if (!turnoEl) { showToast('Selecciona el turno (Tarde o Noche)', 'error'); return; }
+  if (!cierreAccion) { showToast('Indica si hay novedades o no', 'error'); return; }
+
+  const firma = getFirma();
+  const conNovedades = cierreAccion === 'con';
+  let correo = '', label = '';
+
+  if (conNovedades) {
+    if (novedadesList.length === 0) { showToast('Añade al menos una novedad al turno', 'error'); return; }
+    label = '📋 Cierre de turno con novedades';
+    const bullets = novedadesList.map(n => `• ${n}`).join('\n');
+    correo = `Compañero cordial saludo, reportó lo siguiente:\n\n${bullets}\n\nCualquier novedad o duda quedo atento.\nCordialmente,\n${firma}`;
+  } else {
+    label = '✅ Cierre de turno sin novedad';
+    correo = `Compañero cordial saludo, quedó para hacer lo siguiente:\n\n• Sin novedad.\n\nCordialmente,\n${firma}`;
+  }
+
+  mostrarPreview(correo, label);
+  updateStepper(5);
+}
+
+// ===== PREVIEW =====
+function mostrarPreview(correo, label) {
+  document.getElementById('preview-label').textContent = label;
+  document.getElementById('preview-body').textContent = correo;
+  const wrap = document.getElementById('email-preview-wrap');
+  wrap.classList.remove('hidden');
+  setTimeout(() => wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
+}
+
+function copiarCorreo() {
+  const text = document.getElementById('preview-body').textContent;
+  copyText(text);
+}
+
+// ===== RESET =====
+function resetForm() {
+  currentType = null; currentElemento = null; currentAccion = null;
+  novedadesList = []; cierreAccion = null;
+
+  document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById('section-reserva').classList.add('hidden');
+  document.getElementById('section-cierre').classList.add('hidden');
+  document.getElementById('email-preview-wrap').classList.add('hidden');
+  document.getElementById('inp-fecha').value = '';
+  document.getElementById('inp-inicio').value = '';
+  document.getElementById('inp-fin').value = '';
+  document.getElementById('inconsistencia-warn').classList.add('hidden');
+  document.getElementById('novedades-area').classList.add('hidden');
+  document.querySelectorAll('input[type="radio"]').forEach(r => r.checked = false);
+  resetAccionCards();
+  ['acc-sin-novedad','acc-con-novedad'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('selected-confirm','selected-warn');
+  });
+  renderNovedades();
+  updateStepper(1);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ===== INIT =====
+document.addEventListener('DOMContentLoaded', () => {
+  loadFirma();
+  updateStepper(1);
+});
+</script>
+</body>
+</html>
